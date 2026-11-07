@@ -169,6 +169,9 @@ img{max-width:100%;display:block}
 .prose th,.prose td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
 .prose th{background:var(--bg-soft);font-weight:700;color:var(--ink)}
 .prose tr:nth-child(even) td{background:#fbfbfc}
+.prose figure{margin:26px 0 28px}
+.prose figure img{width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:#1d1d1d}
+.prose figcaption{margin-top:9px;font-size:14px;line-height:1.55;color:var(--muted);text-align:center}
 .status{display:inline-flex;align-items:center;gap:8px;background:#ecfdf3;color:#067647;border:1px solid #abefc6;
   border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px;margin:4px 0 8px}
 .status .dot{width:8px;height:8px;border-radius:50%;background:#16a34a}

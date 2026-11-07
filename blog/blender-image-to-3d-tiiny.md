@@ -64,6 +64,8 @@ Run the load command in an interactive terminal; this CLI’s loading display re
 
 In Blender, open **Edit → Preferences → Get Extensions**, open the menu, and choose **Install from Disk**. Select your Tiiny-enabled extension ZIP. Enable **Image to 3D** under **Add-ons**, then expand its preferences. Menu placement can vary by Blender version.
 
+![Blender Preferences, Get Extensions, with Image to 3D 1.1.5 from 3DRedbox Studio installed under GPL-3.0-or-later](../assets/img/blender-image-to-3d-preference-extension.png "Image to 3D 1.1.5 listed as installed under Get Extensions.")
+
 In the Tiiny settings:
 
 1. Enable **Use Tiiny AI for Hunyuan3D-2.1**.
@@ -74,11 +76,15 @@ In the Tiiny settings:
 6. If Blender reports network access is disabled, enable **Preferences → System → Allow Online Access**.
 7. Click **Test Connection** and wait for the result. Save your preferences if automatic saving is disabled.
 
+![The Image to 3D add-on preferences with Use Tiiny AI enabled, Base URL, Key Storage, API Key, Auth Header, Remove Background on Tiiny, Job Timeout, Test Connection, and Troubleshoot / Logs](../assets/img/blender-image-to-3d-preference-add-on.png "The Tiiny settings under Add-ons → Image to 3D. The device address and engine folder are hidden.")
+
 For macOS Keychain storage, use the key-storage button shown after selecting that option. Preferences storage masks the key on screen but stores it as plain text in Blender’s preferences. The environment-variable option reads `IMG3D_TIINY_API_KEY` from Blender’s process environment; set it before launching Blender.
 
 ## 4. Generate your first mesh
 
 Open the add-on’s **Image to 3D** viewport interface, select **Hunyuan**, and choose a reference image. Start with a modest quality setting and click **Generate 3D**. Watch the stage and progress display while the device works.
+
+![Blender viewport showing a generated cat mesh next to the Image to 3D panel, with a cartoon cat as the front image and the Generate 3D button marked Runs on your Tiiny AI device](../assets/img/blender-image-to-3d-generate.png "The Image to 3D panel and the generated cat. With Tiiny, only the front image is used; the left, right, and back slots are ignored.")
 
 The API pipeline consists of background removal, shape generation, optional simplification, texturing, and export. The adapted backend downloads the resulting GLB and imports it into Blender. Inspect the geometry, materials, orientation, and scale before using the asset in a larger scene. Save the Blender project once you have a result you want to keep.
 
