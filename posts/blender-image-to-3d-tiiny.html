@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image to 3D in Blender with Tiiny — Tiiny AI Blog</title>
+<meta name="description" content="Set up the Tiiny-enabled Image to 3D Blender extension, load Hunyuan3D-2.1, and resolve the Test Connection HTTP 503 error.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div>Saturday, November 7, 2026</div>
+    <div class="tb-links"><span>Edge AI</span><span>On-Device Inference</span><strong>Field Notes</strong></div>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="container">
+    <a class="brand" href="../index.html"><span class="mark">t</span>Tiiny&nbsp;AI<em>.</em>Blog</a>
+    <nav class="nav">
+      <a href="../index.html#">Hardware</a>
+      <a href="../index.html#">On-Device AI</a>
+      <a href="../index.html#">Tutorials</a>
+      <a href="../index.html#">Field Notes</a>
+      <a href="../index.html#">Models</a>
+    </nav>
+    <div class="search">🔍&nbsp;Search</div>
+  </div>
+</header>
+
+<article class="article">
+<div class="crumbs"><a href="../index.html">Home</a> &nbsp;›&nbsp; Tutorials &nbsp;›&nbsp; Blender</div>
+<span class="cat">Tutorials · Image to 3D</span>
+<h1 class="title">Image to 3D in Blender with Tiiny: Setup and the HTTP 503 Fix</h1>
+<p class="dek">Connect Blender to Hunyuan3D on your Tiiny device, and check that the model is actually running before you generate.</p>
+<div class="byline"><span class="avatar">T</span><div><div class="who">Tae Lee</div><div class="sub">November 7, 2026 · 6 min read · Tutorial</div></div></div>
+<div class="prose">
+<p>Blender’s Image to 3D add-on can send a reference image to a Tiiny device running Hunyuan3D-2.1 and bring the generated mesh back into your scene. The setup has two parts: configure Blender’s connection, and load the 3D model on the device. A downloaded model alone is not enough.</p>
+<p>These notes cover my locally adapted <strong>Image to 3D 1.1.5</strong> extension with a Tiiny backend. The stock add-on may not include these settings. This post does not distribute the adapted extension; you need a Tiiny-enabled package before following the Blender steps.</p>
+<h2 id="what-you-need">What you need</h2>
+<ul><li>Blender 4.2 or later, as declared by this extension’s manifest. The adapted package lists Windows x64 and macOS ARM64 support.</li><li>The Tiiny-enabled Image to 3D extension ZIP.</li><li>An activated, unlocked Tiiny device reachable from your computer over USB networking or your local network.</li><li>TiinyOS service version 0.1.35 or later, according to the SDK documentation checked for this setup.</li><li>The device’s IP address and API key, plus the Tiiny CLI for the commands below.</li><li>A reference image with a clearly visible subject. A simple background makes a useful first test.</li></ul>
+<p>In this configuration, Hunyuan inference runs on the Tiiny device. On macOS, choose the Hunyuan engine in the add-on; the local CUDA engines are a separate workflow.</p>
+<h2 id="1-connect-to-the-device">1. Connect to the device</h2>
+<p>Find the address under <strong>Settings → Networks</strong> in TiinyOS. Find the API key under <strong>Settings → API Key</strong>. Keep the key out of screenshots and published files.</p>
+<p>Discover the device from a terminal:</p>
+<pre><code>tiiny scan
+tiiny connect &lt;device-ip&gt;</code></pre>
+<p>Replace <code>&lt;device-ip&gt;</code> with the address reported for your device. Discovery may select the device automatically; an explicit connect is useful if several devices are available. If the device says it is locked, run <code>tiiny login</code> and finish signing in before loading a model.</p>
+<h2 id="2-download-and-load-hunyuan3d">2. Download and load Hunyuan3D</h2>
+<p>List downloaded models and loaded models separately:</p>
+<pre><code>tiiny ls
+tiiny ls -l</code></pre>
+<p>For this device, the downloaded list contained Hunyuan3D-2.1, but the loaded list contained only Qwen. That difference explained the connection failure.</p>
+<p>Use the exact model ID printed by your device. In my list it was <code>Tencent/Hunyuan3d-2.1</code>, with a lowercase <code>d</code> in the ID even though the display name is Hunyuan3D-2.1.</p>
+<p>If it is missing from the downloaded list, download it first:</p>
+<pre><code>tiiny download Tencent/Hunyuan3d-2.1</code></pre>
+<p>Then load it and wait for completion:</p>
+<pre><code>tiiny load Tencent/Hunyuan3d-2.1
+tiiny ls -l</code></pre>
+<p>Run the load command in an interactive terminal; this CLI’s loading display requires a TTY. Confirm Hunyuan3D appears in the loaded list before testing Blender. If loading fails, inspect that error first; the Blender connection check cannot start the model for you.</p>
+<h2 id="3-install-and-configure-the-blender-extension">3. Install and configure the Blender extension</h2>
+<p>In Blender, open <strong>Edit → Preferences → Get Extensions</strong>, open the menu, and choose <strong>Install from Disk</strong>. Select your Tiiny-enabled extension ZIP. Enable <strong>Image to 3D</strong> under <strong>Add-ons</strong>, then expand its preferences. Menu placement can vary by Blender version.</p>
+<p>In the Tiiny settings:</p>
+<ol><li>Enable <strong>Use Tiiny AI for Hunyuan3D-2.1</strong>.</li><li>Set <strong>Base URL</strong> to <code>http://&lt;device-ip&gt;/v1</code>, replacing the placeholder with your device’s address. Include <code>/v1</code>; do not append <code>/3d</code> here.</li><li>Choose <strong>Key Storage</strong> and provide the device’s <strong>API Key</strong>. The adapted extension supports Preferences, macOS Keychain, and an environment variable.</li><li>Leave <strong>Auth Header</strong> at <strong>Authorization: Bearer</strong> unless your deployment requires another header.</li><li>Leave <strong>Remove Background on Tiiny</strong> enabled for an ordinary photo. You can turn it off for an image already cut out.</li><li>If Blender reports network access is disabled, enable <strong>Preferences → System → Allow Online Access</strong>.</li><li>Click <strong>Test Connection</strong> and wait for the result. Save your preferences if automatic saving is disabled.</li></ol>
+<p>For macOS Keychain storage, use the key-storage button shown after selecting that option. Preferences storage masks the key on screen but stores it as plain text in Blender’s preferences. The environment-variable option reads <code>IMG3D_TIINY_API_KEY</code> from Blender’s process environment; set it before launching Blender.</p>
+<h2 id="4-generate-your-first-mesh">4. Generate your first mesh</h2>
+<p>Open the add-on’s <strong>Image to 3D</strong> viewport interface, select <strong>Hunyuan</strong>, and choose a reference image. Start with a modest quality setting and click <strong>Generate 3D</strong>. Watch the stage and progress display while the device works.</p>
+<p>The API pipeline consists of background removal, shape generation, optional simplification, texturing, and export. The adapted backend downloads the resulting GLB and imports it into Blender. Inspect the geometry, materials, orientation, and scale before using the asset in a larger scene. Save the Blender project once you have a result you want to keep.</p>
+<p>The connection and model-loading checks below were verified against the physical device. A complete image-to-mesh generation was not measured in this troubleshooting session, so these notes make no generation-time or output-quality claim.</p>
+<h2 id="fix-test-connection-returns-http-503">Fix: Test Connection returns HTTP 503</h2>
+<p>The error that prompted this guide was:</p>
+<pre><code>No 3D model is running on Tiiny - load Hunyuan3D-2.1 on the device first (HTTP 503)</code></pre>
+<p>The device response was:</p>
+<pre><code>{&quot;error&quot;:{&quot;message&quot;:&quot;No suitable model is currently running.&quot;,&quot;type&quot;:&quot;service_unavailable&quot;}}</code></pre>
+<p>The API was reachable, but it could not route the request to a running 3D model. Having Qwen loaded did not satisfy the Image-to-3D endpoint. Hunyuan3D was already downloaded; loading it resolved the failure without reinstalling Blender or downloading the model again.</p>
+<p>You can check the 3D service independently of Blender. Substitute your device’s IP in this command:</p>
+<pre><code>curl -i --max-time 15 http://&lt;device-ip&gt;/v1/3d/health</code></pre>
+<p>This health endpoint does not require an API key. Before loading Hunyuan3D, it returned <strong>HTTP 503</strong>. After loading completed, it returned <strong>HTTP 200 OK</strong> with:</p>
+<pre><code>{&quot;status&quot;:&quot;ok&quot;,&quot;service&quot;:&quot;image-to-3d_server&quot;,&quot;version&quot;:&quot;2.0.0&quot;}</code></pre>
+<p>That confirms the 3D service is available; Blender’s <strong>Test Connection</strong> still needs to verify the configured key and the other endpoints it uses. Click it again after the health check succeeds.</p>
+<h2 id="other-connection-failures">Other connection failures</h2>
+<ul><li><strong>No device connected in the CLI:</strong> run <code>tiiny scan</code>, then <code>tiiny connect &lt;device-ip&gt;</code>.</li><li><strong>Timeout or connection refused:</strong> check the current device IP, USB or network connection, and Blender’s network-access setting.</li><li><strong>HTTP 401 or 403:</strong> check the API key, selected key source, and authentication header.</li><li><strong>HTTP 404:</strong> check that the base URL ends in <code>/v1</code> and that the installed service supports Image-to-3D.</li><li><strong>503 after a restart or model change:</strong> inspect <code>tiiny ls -l</code> again and load Hunyuan3D if it is absent.</li></ul>
+<p>For the failure observed here, the repeatable fix was <code>tiiny load Tencent/Hunyuan3d-2.1</code>, followed by a successful health check and another Blender connection test.</p>
+<h2 id="source-notes">Source notes</h2>
+<p>This guide is based on the local Tiiny-enabled Image to 3D 1.1.5 extension’s manifest, preferences, and backend implementation; the Tiiny SDK Image-to-3D documentation preserved in the local wiki; and live device checks on November 7, 2026. The verified fix was model loading and HTTP 503 changing to HTTP 200. The extension adaptation is separate from the original add-on’s release.</p>
+</div>
+</article>
+<footer class="footer">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <div class="brand">Tiiny&nbsp;AI<span style="color:var(--accent)">.</span>Blog</div>
+        <p style="max-width:40ch">Independent field notes on on-device AI and edge inference
+          hardware. Not affiliated with any vendor; all views are the author’s own.</p>
+      </div>
+      <div>
+        <h5>Sections</h5>
+        <ul><li><a href="../index.html#">Hardware</a></li><li><a href="../index.html#">On-Device AI</a></li>
+          <li><a href="../index.html#">Tutorials</a></li><li><a href="../index.html#">Field Notes</a></li></ul>
+      </div>
+      <div>
+        <h5>More</h5>
+        <ul><li><a href="../index.html">Home</a></li>
+          <li><a href="https://github.com/sqlreport/tiiny-ai-blog">Source on GitHub</a></li></ul>
+      </div>
+    </div>
+    <div class="fine">
+      <span>© 2026 Tiiny AI Blog. Built with GitHub Pages.</span>
+      <span>Made for reproducible debugging.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
