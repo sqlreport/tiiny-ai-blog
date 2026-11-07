@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tiiny AI Blog — On-Device AI, Edge Hardware &amp; Field Notes</title>
+<meta name="description" content="Field notes and technical deep-dives on on-device AI, edge inference hardware, and the TiinyOS platform.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div>Saturday, November 7, 2026</div>
+    <div class="tb-links"><span>Edge AI</span><span>On-Device Inference</span><strong>Field Notes</strong></div>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="container">
+    <a class="brand" href="./index.html"><span class="mark">t</span>Tiiny&nbsp;AI<em>.</em>Blog</a>
+    <nav class="nav">
+      <a href="#">Hardware</a>
+      <a href="#">On-Device AI</a>
+      <a href="#">Tutorials</a>
+      <a href="#">Field Notes</a>
+      <a href="#">Models</a>
+    </nav>
+    <div class="search">🔍&nbsp;Search</div>
+  </div>
+</header>
+
+<main class="container">
+
+  <div class="sec-label">
+    <span class="bar"></span><h2>Featured Field Note</h2><span class="rule"></span>
+  </div>
+
+  <div class="layout">
+    <!-- MAIN COLUMN -->
+    <section>
+      <a class="hero" href="posts/tiiny-vault-repair-writeup.html">
+        <div class="thumb">
+          <div class="glow"></div><div class="grid-ov"></div>
+          <div class="lockchip"><span class="dot"></span>VAULT&nbsp;UNLOCKED · INCIDENT RESOLVED</div>
+        </div>
+        <span class="cat" style="margin-top:16px">Hardware · Incident Report</span>
+        <h1>Inside a Vault-Unlock Failure on the Tiiny Pocket: Diagnosis and In-Place Repair</h1>
+        <p class="dek">An encrypted on-device AI vault that refused every login, a missing master
+          key, three factory resets that didn’t help — and the signed SSH repair path that finally
+          brought it back.</p>
+      </a>
+      <div class="meta">
+        <span class="avatar">T</span>
+        <span class="who">Tae Lee</span>
+        <span class="sep"></span><span>November 7, 2026</span>
+        <span class="sep"></span><span>14 min read</span>
+      </div>
+
+      <div class="sec-label">
+        <span class="bar"></span><h2>Latest</h2><span class="rule"></span>
+      </div>
+
+      <div class="cards">
+        <a class="card" href="posts/tiiny-vault-repair-writeup.html">
+          <div class="thumb"><div class="glow"></div></div>
+          <div class="pad">
+            <span class="cat">Troubleshooting</span>
+            <h3>What <code>vault_authkey_seal_failed</code> Really Means</h3>
+            <p>A missing <code>dek.trusted.blob</code>, a vault-mode red herring, and how to read
+              the device health endpoint correctly.</p>
+            <div class="meta"><span class="who">Field Notes</span><span class="sep"></span><span>Nov 7</span></div>
+          </div>
+        </a>
+        <a class="card" href="posts/tiiny-vault-repair-writeup.html">
+          <div class="thumb c2"><div class="glow"></div></div>
+          <div class="pad">
+            <span class="cat alt">Recovery</span>
+            <h3>Why a Factory Reset Isn’t Always the Fix</h3>
+            <p>When the real repair rebuilds a key in place, re-encrypting the volume can destroy
+              exactly the material you need.</p>
+            <div class="meta"><span class="who">Field Notes</span><span class="sep"></span><span>Nov 7</span></div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- SIDEBAR -->
+    <aside class="side">
+      <div class="box dark">
+        <h4 style="color:#fff;border-color:var(--accent)">About this blog</h4>
+        <p style="margin:0;color:#c3c9d2">Practical, reproducible field notes on on-device AI and
+          edge hardware — real incidents, exact commands, and what actually worked.</p>
+      </div>
+
+      <div class="box">
+        <h4>Popular Topics</h4>
+        <div class="tags">
+          <a href="#">TiinyOS</a><a href="#">LUKS2</a><a href="#">authd</a>
+          <a href="#">Edge NPU</a><a href="#">Hunyuan3D</a><a href="#">Vault</a>
+          <a href="#">Recovery</a><a href="#">On-Device LLM</a>
+        </div>
+      </div>
+
+      <div class="box">
+        <h4>In This Report</h4>
+        <ul class="pop">
+          <li><span class="n">1</span><a href="posts/tiiny-vault-repair-writeup.html#root-cause">The real root cause</a></li>
+          <li><span class="n">2</span><a href="posts/tiiny-vault-repair-writeup.html#tried">What was tried</a></li>
+          <li><span class="n">3</span><a href="posts/tiiny-vault-repair-writeup.html#fix">What actually fixed it</a></li>
+          <li><span class="n">4</span><a href="posts/tiiny-vault-repair-writeup.html#reference">Reference &amp; commands</a></li>
+        </ul>
+      </div>
+
+      <div class="box nl">
+        <h4>Field Notes Digest</h4>
+        <p>Occasional write-ups on edge AI debugging. No spam.</p>
+        <input type="email" placeholder="you@example.com" aria-label="Email">
+        <button class="btn">Subscribe</button>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <div class="brand">Tiiny&nbsp;AI<span style="color:var(--accent)">.</span>Blog</div>
+        <p style="max-width:40ch">Independent field notes on on-device AI and edge inference
+          hardware. Not affiliated with any vendor; all views are the author’s own.</p>
+      </div>
+      <div>
+        <h5>Sections</h5>
+        <ul><li><a href="#">Hardware</a></li><li><a href="#">On-Device AI</a></li>
+          <li><a href="#">Tutorials</a></li><li><a href="#">Field Notes</a></li></ul>
+      </div>
+      <div>
+        <h5>More</h5>
+        <ul><li><a href="posts/tiiny-vault-repair-writeup.html">Latest Report</a></li>
+          <li><a href="https://github.com/sqlreport/tiiny-ai-blog">Source on GitHub</a></li></ul>
+      </div>
+    </div>
+    <div class="fine">
+      <span>© 2026 Tiiny AI Blog. Built with GitHub Pages.</span>
+      <span>Made for reproducible debugging.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

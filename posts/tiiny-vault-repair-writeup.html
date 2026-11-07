@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside a Vault-Unlock Failure on the Tiiny Pocket — Tiiny AI Blog</title>
+<meta name="description" content="A locked on-device AI vault, a missing master key, three factory resets that didn't help, and the signed SSH repair path that finally restored it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div>Saturday, November 7, 2026</div>
+    <div class="tb-links"><span>Edge AI</span><span>On-Device Inference</span><strong>Field Notes</strong></div>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="container">
+    <a class="brand" href="../index.html"><span class="mark">t</span>Tiiny&nbsp;AI<em>.</em>Blog</a>
+    <nav class="nav">
+      <a href="../index.html#">Hardware</a>
+      <a href="../index.html#">On-Device AI</a>
+      <a href="../index.html#">Tutorials</a>
+      <a href="../index.html#">Field Notes</a>
+      <a href="../index.html#">Models</a>
+    </nav>
+    <div class="search">🔍&nbsp;Search</div>
+  </div>
+</header>
+
+<article class="article">
+  <div class="crumbs"><a href="../index.html">Home</a> &nbsp;›&nbsp; Hardware &nbsp;›&nbsp; Incident Report</div>
+  <span class="cat">Hardware · Incident Report</span>
+  <h1 class="title">Inside a Vault-Unlock Failure on the Tiiny Pocket: Diagnosis and In-Place Repair</h1>
+  <p class="dek">An encrypted on-device AI vault that refused every login, a missing master key,
+    three factory resets that didn’t help — and the signed SSH repair path that finally brought
+    it back online.</p>
+
+  <div class="byline">
+    <span class="avatar">T</span>
+    <div>
+      <div class="who">Tae Lee</div>
+      <div class="sub">November 7, 2026 · 14 min read · Field Notes</div>
+    </div>
+  </div>
+
+  <div class="banner">
+    <div class="glow"></div><div class="grid-ov"></div>
+    <div class="cap">Encrypted vault · LUKS2 detached header · vault-mode key architecture</div>
+  </div>
+
+  <div class="prose">
+
+    <p><span class="status"><span class="dot"></span>Resolved</span></p>
+    <p>A Tiiny Pocket — a pocket-sized on-device AI computer — booted with its encrypted data
+      vault locked and refused every login. <code>tiiny load</code>, <code>tiiny login</code>, and
+      the TiinyOS desktop app all reported the device as locked, and eventually returned HTTP 500
+      <code>vault_authkey_seal_failed</code>. This is the full field report: the symptoms, the real
+      root cause, everything that was tried, and the repair that finally worked.</p>
+
+    <h2>The symptoms</h2>
+    <ul>
+      <li><code>tiiny load Tencent/Hunyuan3D-2.1</code> → <em>Device locked. Use ‘tiiny login’ to
+        unlock the device.</em></li>
+      <li><code>GET /v1/data/state</code> → <code>data_state: "locked"</code>,
+        <code>requires_unlock: true</code>, <code>key_arch: "vault"</code></li>
+      <li>From the morning of the incident, <code>POST /api/v1/account/auth</code> (CLI
+        <em>and</em> the TiinyOS app) → HTTP 500 <code>{"error":"vault_authkey_seal_failed"}</code>
+        — the password was accepted, then the seal step failed.</li>
+      <li>The model-serving service (port 8800) and upgrade service (port 5555) were down while
+        the device was locked.</li>
+    </ul>
+    <p>The device’s health endpoint persistently reported:</p>
+    <pre><code>luks_keyfile : /home/tiiny/keys/userdata.keyfile missing
+data_mount   : /data is not mounted but contains files
+mapper       : userdata_crypt is not active
+target       : data-unlocked.target inactive</code></pre>
+
+    <h2 id="root-cause">The real root cause</h2>
+    <p>The actual fault was a <strong>missing credential-wrapped vault master key</strong>. The
+      file <code>/home/tiiny/keys/dek.trusted.blob</code> did not exist, even though the material
+      around it did:</p>
+    <table>
+      <thead><tr><th>File</th><th>State</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>dek.trusted.blob</code></td><td><strong>MISSING</strong></td><td>The sealed vault master the service needs — the fault</td></tr>
+        <tr><td><code>dek.trusted.blob.bare</code></td><td>present (194 B)</td><td>Bare recovery material</td></tr>
+        <tr><td><code>vault.img</code></td><td>present (10 MB)</td><td>Vault image</td></tr>
+        <tr><td><code>userdata.luks2.header</code></td><td>present (16 MB)</td><td>LUKS2 detached header</td></tr>
+        <tr><td><code>data_crypt_state.json</code></td><td>present</td><td><code>key_arch = vault</code></td></tr>
+      </tbody>
+    </table>
+    <p>The vendor’s own diagnostic kit put it plainly:</p>
+    <blockquote><p>“Vault image exists but its primary credential-wrapped blob is missing at
+      /home/tiiny/keys. Bare/other recovery material does not by itself prove a safe recovery
+      path.”</p></blockquote>
+    <p>And, crucially:</p>
+    <blockquote><p>“A missing legacy plaintext <code>userdata.keyfile</code> is not evidence of
+      damage in vault mode.”</p></blockquote>
+
+    <div class="callout"><strong>The red herring:</strong> the <code>luks_keyfile missing</code>
+      and <code>/data is not mounted</code> health lines are <em>expected</em> in vault mode and
+      were <em>not</em> the fault. The only real problem was the missing <code>dek.trusted.blob</code>.
+      Because that master was gone, the service could not seal an auth key on login →
+      <code>vault_authkey_seal_failed</code>. (That specific error only surfaced after the auth
+      service was upgraded to build <code>1.0.0-20260923</code>; the older build gave a generic
+      “sign-in failed.”)</div>
+
+    <h2 id="tried">What was tried</h2>
+
+    <h3>Self-service — did not fix it</h3>
+    <ol>
+      <li><code>unlock_with_auth_key</code> and <code>tiiny login</code> — authenticated, but the
+        vault stayed locked.</li>
+      <li>Email-code recovery (<code>tiiny auth forgot-passwd</code>) — HTTP 500
+        <code>unlock_failed</code>.</li>
+      <li><strong>Factory reset ×3</strong> via the recovery console, each followed by a fresh
+        <code>tiiny init</code> (Local-only, then Email recovery). Each reset completed cleanly and
+        re-encrypted the vault — but it still would not unlock.</li>
+      <li>A full cold power-cycle. No change.</li>
+    </ol>
+
+    <div class="callout"><strong>Lesson:</strong> the factory resets did not help. The real fix
+      rebuilds the master <em>in place</em> from the surviving <code>dek.trusted.blob.bare</code>;
+      a reset re-encrypts the vault and risks destroying exactly that bare material. The resets did
+      not create the fault (the master was already gone before any of them) but they were
+      counterproductive to the real repair.</div>
+
+    <h3>Vendor repair kits</h3>
+    <p>Support iterated a series of signed kits. Each connects over SSH to the device on a
+      dedicated port using a short-lived support certificate, runs a hash-checked worker plus a
+      helper built from the vendor’s own auth-service source, and operates only on the matching
+      serial and service build.</p>
+    <table>
+      <thead><tr><th>Kit</th><th>Purpose</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Diagnostics (r4)</td><td>Read-only log/state collection</td><td>Found the missing <code>dek.trusted.blob</code></td></tr>
+        <tr><td>Production upgrade (r14–r16)</td><td>Install image + upgrade the auth service, then finish via sign-in</td><td>Upgrade applied; sign-in step stopped. r16 reported <code>vault_authkey_seal_failed</code></td></tr>
+        <tr><td>Auth-service collection (r1)</td><td>Read-only collection</td><td>Logs sent to support</td></tr>
+        <tr><td>Master repair (r1)</td><td>Reconstruct the master in place</td><td>Stopped at a strict identity gate</td></tr>
+        <tr><td>Master repair (r2)</td><td>Same, relaxed identity checks</td><td>Stopped: <code>PermissionError</code></td></tr>
+        <tr><td>Master repair (r3)</td><td>Same + detailed error reporting</td><td><code>Existing master preserved; repair is inapplicable</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="fix">What actually fixed it</h2>
+    <p>By the r3 run, the master key <code>dek.trusted.blob</code> <strong>existed again</strong> —
+      most likely re-created by a <code>tiiny init</code> under the upgraded auth service. The r3
+      message <em>“Existing master preserved; repair is inapplicable”</em> fires only when the
+      master is present and no leftover repair backup exists, and it had already verified the
+      password. A Tiiny support engineer saw this and suggested the obvious next step:</p>
+    <blockquote><p>“I see that you already have the <code>dek.trusted.blob</code>. Could you try
+      again with <code>tiiny login</code>?”</p></blockquote>
+    <p>A single normal login then succeeded:</p>
+    <pre><code>tiiny login
+Username: sqlreport
+Password:
+success</code></pre>
+    <p>Verified unlocked immediately afterward:</p>
+    <pre><code>GET /v1/data/state
+→ { "data_state": "unlocked", "requires_unlock": false, "serivice_status": "ok" }</code></pre>
+    <p>The four real health errors cleared at once: <code>/data</code> mounted, the
+      <code>userdata_crypt</code> mapper active, <code>data-unlocked.target</code> active, and
+      docker available. The remaining health lines (<code>legacy_*</code>, <code>luks_keyfile</code>,
+      header-backup) are the benign vault-mode items flagged as not-a-fault.</p>
+    <p>Support then had the device finish with the production update kit, which ran to completion:</p>
+    <pre><code>Updating Tiiny. Please wait...
+Update complete. Saving support files...
+Done. You can now use TiinyOS.
+Now downloading models</code></pre>
+
+    <h2 id="reference">Reference &amp; takeaways</h2>
+    <ul>
+      <li>The device API requires a <code>Host: auth.api.tiiny</code> header; the authoritative
+        endpoint over USB-C is the gadget link address, with a LAN fallback and discovery at
+        <code>:39218/device.json</code>.</li>
+      <li>The recovery console is armed with <code>POST /api/v1/system/next_boot_recovery</code>
+        (password required), reached after a power-cycle; it exposes
+        <code>/api/recovery/v1/{status,session,operations}</code>. A factory reset re-encrypts the
+        full ~100&nbsp;GB vault (several minutes).</li>
+      <li><code>vault_authkey_seal_failed</code> = the auth service cannot seal the auth key
+        because the vault master (<code>dek.trusted.blob</code>) is missing or unusable.</li>
+      <li>Read the health endpoint in context: in <em>vault mode</em>, a missing legacy
+        <code>userdata.keyfile</code> is normal. Don’t chase it.</li>
+      <li>When a vendor’s recovery path rebuilds a key <em>in place</em>, resist the urge to factory
+        reset — you can erase the very material the repair depends on.</li>
+    </ul>
+
+    <div class="tagrow">
+      <a href="#">TiinyOS</a><a href="#">LUKS2</a><a href="#">Vault</a><a href="#">authd</a>
+      <a href="#">Edge AI</a><a href="#">Incident Report</a><a href="#">Recovery</a>
+    </div>
+
+    <p style="color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding-top:16px;margin-top:26px">
+      Sources: a live troubleshooting session (device queries and kit inspection) and the Tiiny
+      support thread, November 7, 2026. Device identifiers and personal contact details have been
+      redacted. This is an independent field note and is not affiliated with the vendor.</p>
+
+  </div>
+</article>
+
+<footer class="footer">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <div class="brand">Tiiny&nbsp;AI<span style="color:var(--accent)">.</span>Blog</div>
+        <p style="max-width:40ch">Independent field notes on on-device AI and edge inference
+          hardware. Not affiliated with any vendor; all views are the author’s own.</p>
+      </div>
+      <div>
+        <h5>Sections</h5>
+        <ul><li><a href="../index.html#">Hardware</a></li><li><a href="../index.html#">On-Device AI</a></li>
+          <li><a href="../index.html#">Tutorials</a></li><li><a href="../index.html#">Field Notes</a></li></ul>
+      </div>
+      <div>
+        <h5>More</h5>
+        <ul><li><a href="../index.html">Home</a></li>
+          <li><a href="https://github.com/sqlreport/tiiny-ai-blog">Source on GitHub</a></li></ul>
+      </div>
+    </div>
+    <div class="fine">
+      <span>© 2026 Tiiny AI Blog. Built with GitHub Pages.</span>
+      <span>Made for reproducible debugging.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
