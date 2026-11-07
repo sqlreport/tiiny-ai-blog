@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Run Pi on Omnigent with Qwen on a Tiiny Pocket — Tiiny AI Blog</title>
+<meta name="description" content="Configure Pi, the Omnigent coding agent harness, to use Qwen3.6-35B-A3B on a Tiiny Pocket through its OpenAI-compatible API, then verify chat and tool calling.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div>Saturday, November 7, 2026</div>
+    <div class="tb-links"><span>Edge AI</span><span>On-Device Inference</span><strong>Field Notes</strong></div>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="container">
+    <a class="brand" href="../index.html"><span class="mark">t</span>Tiiny&nbsp;AI<em>.</em>Blog</a>
+    <nav class="nav">
+      <a href="../index.html#">Hardware</a>
+      <a href="../index.html#">On-Device AI</a>
+      <a href="../index.html#">Tutorials</a>
+      <a href="../index.html#">Field Notes</a>
+      <a href="../index.html#">Models</a>
+    </nav>
+    <div class="search">🔍&nbsp;Search</div>
+  </div>
+</header>
+
+<article class="article">
+<div class="crumbs"><a href="../index.html">Home</a> &nbsp;›&nbsp; Tutorials &nbsp;›&nbsp; Agents</div>
+<span class="cat">Tutorials · On-Device LLM</span>
+<h1 class="title">Run Pi on Omnigent with Qwen3.6-35B-A3B on a Tiiny Pocket</h1>
+<p class="dek">Add the Tiiny Pocket as a custom OpenAI-compatible provider in Pi, select Qwen in an Omnigent session, and check that chat and tool calls actually work.</p>
+<div class="byline"><span class="avatar">T</span><div><div class="who">Tae Lee</div><div class="sub">November 7, 2026 · 8 min read · Tutorial</div></div></div>
+<div class="prose">
+<p>A Tiiny Pocket serves its models through an OpenAI-compatible Chat Completions API. Pi, the coding agent harness that Omnigent runs, can use any such endpoint as a custom provider. This post shows how to point Pi at <strong>Qwen/Qwen3.6-35B-A3B</strong> on the device, with one entry in <code>~/.pi/agent/models.json</code>.</p>
+<p>Expect plain chat to work. Check tool calling, context size, and throughput on your own device before you rely on them; see <a href="#known-limitations">Known limitations</a>.</p>
+<h2 id="what-you-need">What you need</h2>
+<ul><li>A Tiiny Pocket that offers Qwen3.6-35B-A3B in its Model Store, downloaded and loaded.</li><li>The device's OpenAI base URL, its API key, and the exact model ID it serves.</li><li>Pi installed on the machine that runs Omnigent, with Node.js 22.19 or later.</li><li>A running Omnigent server. The default address is <code>http://127.0.0.1:6767</code>.</li></ul>
+<h2 id="1-collect-the-device-details">1. Collect the device details</h2>
+<table><thead><tr><th>Item</th><th>What it is</th><th>Example</th></tr></thead><tbody><tr><td>Base URL</td><td>The OpenAI API base, including <code>/v1</code></td><td><code>http://192.168.1.100:8000/v1</code></td></tr><tr><td>API key</td><td>The key TiinyOS issues</td><td>Keep it private</td></tr><tr><td>Model ID</td><td>The exact ID the device serves</td><td><code>Qwen/Qwen3.6-35B-A3B</code></td></tr><tr><td>Context limit</td><td>The largest context the device accepts</td><td>Check TiinyOS</td></tr></tbody></table>
+<p>TiinyOS shows the address and API key in its settings, and the model under the Model Store. Keep the key out of screenshots and shared files.</p>
+<p>Check that the device answers before you touch Pi:</p>
+<pre><code>curl -H &quot;Authorization: Bearer $TIINY_API_KEY&quot; http://DEVICE_HOST:PORT/v1/models</code></pre>
+<h2 id="2-add-a-tiiny-provider-to-modelsjson">2. Add a Tiiny provider to models.json</h2>
+<p>Pi reads custom providers from <code>~/.pi/agent/models.json</code>. A provider entry takes these fields:</p>
+<table><thead><tr><th>Field</th><th>Required</th><th>Meaning</th></tr></thead><tbody><tr><td><code>baseUrl</code></td><td>Yes</td><td>The device's OpenAI base URL, including <code>/v1</code></td></tr><tr><td><code>api</code></td><td>Yes</td><td><code>"openai-completions"</code> for Chat Completions</td></tr><tr><td><code>apiKey</code></td><td>Yes</td><td>A literal key, <code>"$NAME"</code> to read an environment variable, or <code>"!command"</code> to use a command's output</td></tr><tr><td><code>authHeader</code></td><td>No (default <code>false</code>)</td><td><code>true</code> sends the key as <code>Authorization: Bearer</code></td></tr><tr><td><code>models</code></td><td>Yes</td><td>The models this provider serves</td></tr></tbody></table>
+<p>Each model needs an <code>id</code> that exactly matches the device's model ID. <code>name</code> sets the label in Pi, and <code>input</code> defaults to <code>["text"]</code>.</p>
+<p>Read the key from an environment variable rather than writing it into the file:</p>
+<pre><code>{
+  &quot;$schema&quot;: &quot;https://pi.dev/schemas/models.schema.json&quot;,
+  &quot;providers&quot;: {
+    &quot;tiiny&quot;: {
+      &quot;name&quot;: &quot;Tiiny Pocket&quot;,
+      &quot;baseUrl&quot;: &quot;http://DEVICE_HOST:PORT/v1&quot;,
+      &quot;api&quot;: &quot;openai-completions&quot;,
+      &quot;apiKey&quot;: &quot;$TIINY_API_KEY&quot;,
+      &quot;authHeader&quot;: true,
+      &quot;models&quot;: [
+        {
+          &quot;id&quot;: &quot;Qwen/Qwen3.6-35B-A3B&quot;,
+          &quot;name&quot;: &quot;Tiiny Qwen3.6-35B-A3B&quot;,
+          &quot;input&quot;: [&quot;text&quot;]
+        }
+      ]
+    }
+  }
+}</code></pre>
+<p>Replace <code>DEVICE_HOST:PORT</code> with your device's address, then export the key in the shell that starts Omnigent, or in your shell profile:</p>
+<pre><code>export TIINY_API_KEY=&quot;&lt;your-tiiny-api-key&gt;&quot;</code></pre>
+<p>If the key lives in a secret manager, use a command instead:</p>
+<pre><code>&quot;apiKey&quot;: &quot;!cat ~/.secrets/tiiny-key&quot;</code></pre>
+<h3 id="optional-model-fields">Optional model fields</h3>
+<table><thead><tr><th>Field</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>contextWindow</code></td><td>128,000</td><td>Context size in tokens. Set it to what the device actually accepts.</td></tr><tr><td><code>maxTokens</code></td><td>16,384</td><td>Maximum output tokens per turn. A smaller value suits a small device.</td></tr><tr><td><code>reasoning</code></td><td><code>false</code></td><td>Whether the model supports thinking</td></tr><tr><td><code>compat</code></td><td>none</td><td>API compatibility overrides</td></tr></tbody></table>
+<p>For example, add <code>"contextWindow": 131072, "maxTokens": 8192</code> to the model entry once you have confirmed those limits on your device.</p>
+<h2 id="3-reload-and-check-the-provider">3. Reload and check the provider</h2>
+<p>Pi reloads <code>models.json</code> when you open the model picker with <code>/model</code>. Some versions also have <code>/reload</code>. From a terminal, list the models Pi knows about:</p>
+<pre><code>pi --list-models</code></pre>
+<p>The Tiiny provider and <code>Qwen/Qwen3.6-35B-A3B</code> should be in the list. If they are missing, see <a href="#troubleshooting">Troubleshooting</a>.</p>
+<h2 id="4-pick-the-model-in-omnigent">4. Pick the model in Omnigent</h2>
+<p>Start a new Pi session in the Omnigent web UI and select the model:</p>
+<pre><code>/model Qwen/Qwen3.6-35B-A3B</code></pre>
+<p>Then send a short message to confirm the connection.</p>
+<p>An Omnigent agent spec does not need its own Tiiny setting. The Omnigent runner hands the session to Pi, and Pi reads the provider from <code>models.json</code>.</p>
+<h2 id="5-test-it-end-to-end">5. Test it end to end</h2>
+<table><thead><tr><th>Test</th><th>How</th><th>Expected</th></tr></thead><tbody><tr><td>Basic chat</td><td>Send a text message</td><td>A reply arrives</td></tr><tr><td>Tool call</td><td>Ask it to read a file or run a shell command</td><td>A structured tool call runs</td></tr><tr><td>Tool result</td><td>Look at the next turn</td><td>The model uses the tool's output</td></tr><tr><td>Structure</td><td>Watch how tools are invoked</td><td>Real tool-call blocks, not a prose description of a call</td></tr></tbody></table>
+<p>The tool tests matter most for agent work. If the model only describes what it would do, the variant you loaded may not support tool calling.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="the-model-does-not-appear-in-pi">The model does not appear in Pi</h3>
+<ol><li>Check that <code>~/.pi/agent/models.json</code> is valid JSON.</li><li>Make sure Pi is reading that file and not a different agent directory.</li><li>Run <code>/model</code> again to reload.</li><li>Check the device: <code>curl http://DEVICE_HOST:PORT/v1/models</code>.</li></ol>
+<h3 id="authentication-errors">Authentication errors</h3>
+<ul><li>Confirm the key is current, and that <code>TIINY_API_KEY</code> is set in the environment of the process that runs Pi.</li><li>Set <code>"authHeader": true</code> if the device expects a bearer token.</li><li>Call the device directly with the same key:</li></ul>
+<pre><code>curl http://DEVICE_HOST:PORT/v1/chat/completions \
+  -H &quot;Authorization: Bearer $TIINY_API_KEY&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{&quot;model&quot;: &quot;Qwen/Qwen3.6-35B-A3B&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;hi&quot;}]}&#x27;</code></pre>
+<h3 id="invalid-request-errors">"Invalid request" errors</h3>
+<p>These usually mean one of the following:</p>
+<ul><li>The base URL is wrong, for example missing <code>/v1</code> or using the wrong port.</li><li>The device rejected the key.</li><li>The model ID does not match what the device serves.</li></ul>
+<h3 id="errors-inside-an-omnigent-session">Errors inside an Omnigent session</h3>
+<ol><li>Check the Pi runner logs for provider errors.</li><li>Confirm the Omnigent host can reach the device over the network.</li><li>Compare the model ID with the device's <code>/v1/models</code> output.</li></ol>
+<h2 id="known-limitations">Known limitations</h2>
+<ol><li><strong>Text only.</strong> Use <code>input: ["text"]</code>. Image input has not been confirmed.</li><li><strong>Tool calling varies.</strong> It depends on the model variant the device loads. Run the tests in step 5 before you give the agent real work.</li><li><strong>Device serving limits.</strong> Rate limits, context window, and throughput depend on the device. Confirm them in TiinyOS.</li><li><strong>Reasoning settings.</strong> Do not assume Pi's thinking settings control Qwen's reasoning on Tiiny. No mapping between them has been established.</li><li><strong>Keys are read once.</strong> Pi reads the bearer key when the session starts. A short-lived key can expire during a long session.</li></ol>
+<p>Start with one agent, short tasks, and modest context and output limits. Raise them once you know what your device handles.</p>
+<h2 id="source-notes">Source notes</h2>
+<p>This guide comes from my Omnigent knowledge-base notes on configuring Pi with a Tiiny provider, and from Pi's <a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models-configuration.md">models configuration</a> and <a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/custom-provider.md">custom provider</a> documentation. The <code>apiKey</code> forms, <code>authHeader</code>, and the model-field defaults are taken from Pi's documentation. Tool-calling and streaming behaviour on the device remain to be confirmed.</p>
+</div>
+</article>
+<footer class="footer">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <div class="brand">Tiiny&nbsp;AI<span style="color:var(--accent)">.</span>Blog</div>
+        <p style="max-width:40ch">Independent field notes on on-device AI and edge inference
+          hardware. Not affiliated with any vendor; all views are the author’s own.</p>
+      </div>
+      <div>
+        <h5>Sections</h5>
+        <ul><li><a href="../index.html#">Hardware</a></li><li><a href="../index.html#">On-Device AI</a></li>
+          <li><a href="../index.html#">Tutorials</a></li><li><a href="../index.html#">Field Notes</a></li></ul>
+      </div>
+      <div>
+        <h5>More</h5>
+        <ul><li><a href="../index.html">Home</a></li>
+          <li><a href="https://github.com/sqlreport/tiiny-ai-blog">Source on GitHub</a></li></ul>
+      </div>
+    </div>
+    <div class="fine">
+      <span>© 2026 Tiiny AI Blog. Built with GitHub Pages.</span>
+      <span>Made for reproducible debugging.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
