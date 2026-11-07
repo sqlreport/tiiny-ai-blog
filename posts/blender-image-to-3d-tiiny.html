@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Image to 3D in Blender with Tiiny — Tiiny AI Blog</title>
-<meta name="description" content="Set up the Tiiny-enabled Image to 3D Blender extension, load Hunyuan3D-2.1, and resolve the Test Connection HTTP 503 error.">
+<meta name="description" content="Set up the Tiiny-enabled Image to 3D Blender extension, fix the HTTP 503 error and flat-square meshes, and port the Windows-only extension to macOS.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -36,12 +36,13 @@
 <article class="article">
 <div class="crumbs"><a href="../index.html">Home</a> &nbsp;›&nbsp; Tutorials &nbsp;›&nbsp; Blender</div>
 <span class="cat">Tutorials · Image to 3D</span>
-<h1 class="title">Image to 3D in Blender with Tiiny: Setup and the HTTP 503 Fix</h1>
-<p class="dek">Connect Blender to Hunyuan3D on your Tiiny device, and check that the model is actually running before you generate.</p>
-<div class="byline"><span class="avatar">T</span><div><div class="who">Tae Lee</div><div class="sub">November 7, 2026 · 6 min read · Tutorial</div></div></div>
+<h1 class="title">Image to 3D in Blender with Tiiny: Setup, Fixes, and a macOS Port</h1>
+<p class="dek">Connect Blender to Hunyuan3D or TRELLIS.2 on your Tiiny device, fix the errors that stop it, and port the Windows-only extension to macOS.</p>
+<div class="byline"><span class="avatar">T</span><div><div class="who">Tae Lee</div><div class="sub">November 7, 2026 · 14 min read · Tutorial</div></div></div>
 <div class="prose">
-<p>Blender’s Image to 3D add-on can send a reference image to a Tiiny device running Hunyuan3D-2.1 and bring the generated mesh back into your scene. The setup has two parts: configure Blender’s connection, and load the 3D model on the device. A downloaded model alone is not enough.</p>
-<p>These notes cover my locally adapted <strong>Image to 3D 1.1.5</strong> extension with a Tiiny backend. The stock add-on may not include these settings. This post does not distribute the adapted extension; you need a Tiiny-enabled package before following the Blender steps.</p>
+<p>Blender’s Image to 3D add-on can send a reference image to a Tiiny device running Hunyuan3D-2.1 or TRELLIS.2-4B and bring the generated mesh back into your scene. The setup has two parts: configure Blender’s connection, and load the 3D model on the device. A downloaded model alone is not enough.</p>
+<p>These notes cover my locally adapted <strong>Image to 3D 1.1.5</strong> extension with a Tiiny backend. The stock add-on is Windows-only and does not include these settings. This post does not distribute the adapted extension. Before following the Blender steps you need a Tiiny-enabled package, or you can build one yourself as described in <a href="#adapting-the-windows-only-extension-for-macos">Adapting the Windows-only extension for macOS</a>.</p>
+<p>The post covers two fixes: the <a href="#fix-test-connection-returns-http-503">HTTP 503 connection error</a>, and a <a href="#fix-the-model-comes-out-as-a-flat-square">model that comes out as a flat square</a>.</p>
 <h2 id="what-you-need">What you need</h2>
 <ul><li>Blender 4.2 or later, as declared by this extension’s manifest. The adapted package lists Windows x64 and macOS ARM64 support.</li><li>The Tiiny-enabled Image to 3D extension ZIP.</li><li>An activated, unlocked Tiiny device reachable from your computer over USB networking or your local network.</li><li>TiinyOS service version 0.1.35 or later, according to the SDK documentation checked for this setup.</li><li>The device’s IP address and API key, plus the Tiiny CLI for the commands below.</li><li>A reference image with a clearly visible subject. A simple background makes a useful first test.</li></ul>
 <p>In this configuration, Hunyuan inference runs on the Tiiny device. On macOS, choose the Hunyuan engine in the add-on; the local CUDA engines are a separate workflow.</p>
@@ -66,12 +67,12 @@ tiiny ls -l</code></pre>
 <h2 id="3-install-and-configure-the-blender-extension">3. Install and configure the Blender extension</h2>
 <p>In Blender, open <strong>Edit → Preferences → Get Extensions</strong>, open the menu, and choose <strong>Install from Disk</strong>. Select your Tiiny-enabled extension ZIP. Enable <strong>Image to 3D</strong> under <strong>Add-ons</strong>, then expand its preferences. Menu placement can vary by Blender version.</p>
 <p>In the Tiiny settings:</p>
-<ol><li>Enable <strong>Use Tiiny AI for Hunyuan3D-2.1</strong>.</li><li>Set <strong>Base URL</strong> to <code>http://&lt;device-ip&gt;/v1</code>, replacing the placeholder with your device’s address. Include <code>/v1</code>; do not append <code>/3d</code> here.</li><li>Choose <strong>Key Storage</strong> and provide the device’s <strong>API Key</strong>. The adapted extension supports Preferences, macOS Keychain, and an environment variable.</li><li>Leave <strong>Auth Header</strong> at <strong>Authorization: Bearer</strong> unless your deployment requires another header.</li><li>Leave <strong>Remove Background on Tiiny</strong> enabled for an ordinary photo. You can turn it off for an image already cut out.</li><li>If Blender reports network access is disabled, enable <strong>Preferences → System → Allow Online Access</strong>.</li><li>Click <strong>Test Connection</strong> and wait for the result. Save your preferences if automatic saving is disabled.</li></ol>
+<ol><li>Enable <strong>Use Tiiny AI for Hunyuan3D-2.1</strong>.</li><li>Set <strong>Base URL</strong> to <code>http://&lt;device-ip&gt;/v1</code>, replacing the placeholder with your device’s address. Include <code>/v1</code>; do not append <code>/3d</code> here.</li><li>Choose <strong>Key Storage</strong> and provide the device’s <strong>API Key</strong>. The adapted extension supports Preferences, macOS Keychain, and an environment variable.</li><li>Leave <strong>Auth Header</strong> at <strong>Authorization: Bearer</strong> unless your deployment requires another header.</li><li>Leave <strong>Remove Background on Tiiny</strong> enabled for an ordinary photo. You can turn it off for an image already cut out. On my device this step currently fails and the job quietly continues with the original picture; see <a href="#fix-the-model-comes-out-as-a-flat-square">the flat-square fix</a>.</li><li>If Blender reports network access is disabled, enable <strong>Preferences → System → Allow Online Access</strong>.</li><li>Click <strong>Test Connection</strong> and wait for the result. Save your preferences if automatic saving is disabled.</li></ol>
 <p>For macOS Keychain storage, use the key-storage button shown after selecting that option. Preferences storage masks the key on screen but stores it as plain text in Blender’s preferences. The environment-variable option reads <code>IMG3D_TIINY_API_KEY</code> from Blender’s process environment; set it before launching Blender.</p>
 <h2 id="4-generate-your-first-mesh">4. Generate your first mesh</h2>
 <p>Open the add-on’s <strong>Image to 3D</strong> viewport interface, select <strong>Hunyuan</strong>, and choose a reference image. Start with a modest quality setting and click <strong>Generate 3D</strong>. Watch the stage and progress display while the device works.</p>
 <p>The API pipeline consists of background removal, shape generation, optional simplification, texturing, and export. The adapted backend downloads the resulting GLB and imports it into Blender. Inspect the geometry, materials, orientation, and scale before using the asset in a larger scene. Save the Blender project once you have a result you want to keep.</p>
-<p>The connection and model-loading checks below were verified against the physical device. A complete image-to-mesh generation was not measured in this troubleshooting session, so these notes make no generation-time or output-quality claim.</p>
+<p>The connection and model-loading checks below were verified against the physical device. Complete generations were later verified with TRELLIS.2-4B; the timings are in <a href="#fix-the-model-comes-out-as-a-flat-square">the flat-square fix</a>.</p>
 <h2 id="fix-test-connection-returns-http-503">Fix: Test Connection returns HTTP 503</h2>
 <p>The error that prompted this guide was:</p>
 <pre><code>No 3D model is running on Tiiny - load Hunyuan3D-2.1 on the device first (HTTP 503)</code></pre>
@@ -86,8 +87,83 @@ tiiny ls -l</code></pre>
 <h2 id="other-connection-failures">Other connection failures</h2>
 <ul><li><strong>No device connected in the CLI:</strong> run <code>tiiny scan</code>, then <code>tiiny connect &lt;device-ip&gt;</code>.</li><li><strong>Timeout or connection refused:</strong> check the current device IP, USB or network connection, and Blender’s network-access setting.</li><li><strong>HTTP 401 or 403:</strong> check the API key, selected key source, and authentication header.</li><li><strong>HTTP 404:</strong> check that the base URL ends in <code>/v1</code> and that the installed service supports Image-to-3D.</li><li><strong>503 after a restart or model change:</strong> inspect <code>tiiny ls -l</code> again and load Hunyuan3D if it is absent.</li></ul>
 <p>For the failure observed here, the repeatable fix was <code>tiiny load Tencent/Hunyuan3d-2.1</code>, followed by a successful health check and another Blender connection test.</p>
+<h2 id="fix-the-model-comes-out-as-a-flat-square">Fix: the model comes out as a flat square</h2>
+<p>The connection worked and generation finished, but the imported model was a flat square: the whole picture, background included, turned into a thin slab, with the subject painted on its front.</p>
+<h3 id="check-what-you-actually-got">Check what you actually got</h3>
+<p>Don't judge by the bounding box alone. My broken results measured about 2 × 2 × 1.4 units, which looks like a solid object. Hunyuan3D generates inside a cube from -1 to 1, so a result that touches the cube on two axes is suspicious. Split the mesh into loose parts (<strong>Edit Mode → Mesh → Separate → By Loose Parts</strong>) and look at the thickness. Mine was one or more flat sheets about 0.014 units thick, one voxel of the generation grid, or a scattering of small flat fragments. A healthy result is one solid piece shaped like the subject.</p>
+<h3 id="what-it-was-not">What it was not</h3>
+<p>I worked through the likely causes in order. None of these fixed it:</p>
+<ul><li><strong>Remove Background was off.</strong> That is a real cause for photos with a solid background: Hunyuan3D treats every opaque pixel as part of the object. Turning it on did not help here, for the reason below.</li><li><strong>The input image.</strong> A properly cut-out PNG (70% of pixels fully transparent) gave the same result as the same cut-out flattened onto white.</li><li><strong>Quality settings.</strong> Draft and standard precision both came back flat.</li><li><strong>Other models sharing the device.</strong> Unloading Qwen so Hunyuan ran alone changed nothing.</li><li><strong>A bad download.</strong> <code>tiiny unload</code>, <code>tiiny rm</code>, <code>tiiny download</code>, and <code>tiiny load</code> for <code>Tencent/Hunyuan3d-2.1</code> gave a fresh store copy that failed identically.</li></ul>
+<h3 id="the-cause-the-3d-model-on-the-device">The cause: the 3D model on the device</h3>
+<p>To take Blender out of the picture, I sent each stage straight to the device's API and measured the meshes it returned. Two faults showed up on the device itself:</p>
+<p><strong>The background stage fails</strong> with:</p>
+<pre><code>BriefNet ONNX model not found: /model/BriefNet</code></pre>
+<p>The extension treats a failed background stage as non-fatal. It shows "Background removal failed on Tiiny - using the picture as it is" in the progress line and sends the original picture to the shape stage, so the toggle in Blender has no effect.</p>
+<p><strong>Hunyuan3D's shape stage returns flat one-voxel sheets</strong> for every input. The 3D health check still says <code>ok</code> and <code>tiiny ls -l</code> shows the model loaded, so neither catches it.</p>
+<p>The fault reproduced on a clean reinstall, so it lies in the model package or the device's 3D server (<code>image-to-3d_server</code> 2.0.0), not on the computer. I reported it to Tiiny support with the error above and the mesh measurements.</p>
+<h3 id="workaround-use-trellis2-4b">Workaround: use TRELLIS.2-4B</h3>
+<p>TRELLIS.2-4B, a second Image-to-3D model in the Tiiny store, produced correct meshes from the same image on the same device and server:</p>
+<pre><code>tiiny unload Tencent/Hunyuan3d-2.1
+tiiny download microsoft/TRELLIS.2-4B   # skip if `tiiny ls` already lists it
+tiiny load microsoft/TRELLIS.2-4B</code></pre>
+<p>TRELLIS chains its stages differently from Hunyuan, so the extension needs support for it; the changes are covered under <a href="#6-supporting-trellis2">Supporting TRELLIS.2</a>. With that in place, keep <strong>Hunyuan</strong> selected as the engine in the Image to 3D panel. That choice routes generation to the Tiiny device, which runs whichever 3D model is loaded.</p>
+<p>From the cut-out cat at High quality with 40,000 faces, my measured runs were:</p>
+<table><thead><tr><th>Run</th><th>Stages</th><th>Time</th><th>Result</th></tr></thead><tbody><tr><td>Textured, 1024 px</td><td>shape, simplify, texture, export</td><td>6.6 min</td><td>Solid painted cat, about 34,000 vertices</td></tr><tr><td>Untextured</td><td>shape, simplify</td><td>4.3 min</td><td>Clean cat-shaped mesh, about 18,000 vertices</td></tr></tbody></table>
+<p>Background removal shares the missing BriefNet model, so it fails with TRELLIS too. Until the device is fixed, feed it a PNG with a transparent background and leave <strong>Remove Background on Tiiny</strong> off.</p>
+<h3 id="two-traps-along-the-way">Two traps along the way</h3>
+<ul><li><strong>Restart Blender after changing the extension.</strong> Saving new files into the extension folder doesn't change the copy Blender already has in memory. Quit with ⌘Q and reopen; closing the window is not enough. My first two attempts after the change failed because Blender was still running the old code.</li><li><strong>Don't click Generate again after an HTTP 502.</strong> A 502 on upload can arrive after the device has already accepted the task. A second click then gets HTTP 429 ("only one request may execute at a time"). Wait a few minutes for the first task to finish.</li></ul>
+<h2 id="adapting-the-windows-only-extension-for-macos">Adapting the Windows-only extension for macOS</h2>
+<p>The published Image to 3D 1.1.5 declares <code>platforms = ["windows-x64"]</code>. Its engines (TRELLIS.2, Pixal3D, Hi3D, Klein, and local Hunyuan3D) run on an NVIDIA GPU through CUDA, which Macs do not have. The port does not try to run those engines on Apple silicon. Instead it keeps all of the add-on's user interface and import code, and sends Hunyuan jobs to the Tiiny device over the network.</p>
+<p>The add-on is licensed GPL-3.0-or-later, so you may modify it for your own use. If you redistribute a modified build, the GPL's source and license terms apply.</p>
+<p>Keep an untouched copy of the original folder before you start. I kept mine as <code>image_to_3d-1.1.5.bak_orig</code> and compared against it throughout.</p>
+<h3 id="1-declare-macos-in-the-manifest">1. Declare macOS in the manifest</h3>
+<p>In <code>blender_manifest.toml</code>, add the platform and describe the new network use:</p>
+<pre><code># macos-arm64: Hunyuan3D-2.1 runs on a Tiiny AI device on the local network;
+# the local CUDA engines (TRELLIS.2, Pixal3D, Hi3D, Klein) are Windows only
+platforms = [&quot;windows-x64&quot;, &quot;macos-arm64&quot;]
+
+[permissions]
+network = &quot;Download AI models, connect to your Tiiny AI device&quot;
+files = &quot;Read pictures, install the engine and models&quot;</code></pre>
+<p>The original files use Windows (CRLF) line endings. Converting them to LF is harmless, but it makes a plain <code>diff</code> against the original show every line as changed. Use <code>diff --strip-trailing-cr</code> to see the real edits.</p>
+<h3 id="2-move-windows-only-calls-behind-one-helper">2. Move Windows-only calls behind one helper</h3>
+<p>The add-on called Windows APIs directly in several places. I gathered them into a new <code>platform_util.py</code> so the rest of the code loads and runs on a Mac:</p>
+<table><thead><tr><th>Windows original</th><th>Helper</th><th>macOS behaviour</th></tr></thead><tbody><tr><td><code>env\Scripts\python.exe</code></td><td><code>venv_python(env_dir)</code></td><td><code>env/bin/python</code></td></tr><tr><td><code>taskkill /PID … /T /F</code></td><td><code>kill_tree(p)</code></td><td><code>SIGTERM</code> to the process group, then <code>SIGKILL</code></td></tr><tr><td><code>creationflags=0x08000000</code> (no console window)</td><td><code>NOWINDOW</code></td><td><code>0</code>; POSIX rejects that flag</td></tr><tr><td>Windows memory query</td><td><code>mem_gb()</code></td><td><code>sysctl hw.memsize</code> and <code>vm_stat</code></td></tr></tbody></table>
+<p>Then replace each direct call in <code>__init__.py</code> with the helper, for example <code>platform_util.venv_python(...)</code> and <code>platform_util.kill_tree(p)</code>.</p>
+<h3 id="3-decide-which-backend-runs-each-engine">3. Decide which backend runs each engine</h3>
+<p>A single function answers, for each engine, whether it runs locally, on the Tiiny device, or not at all on this machine:</p>
+<pre><code>def backend_for(engine):
+    &quot;&quot;&quot;&#x27;TIINY&#x27;, &#x27;LOCAL&#x27;, or None when this machine cannot run the engine.&quot;&quot;&quot;
+    if engine == &quot;HUNYUAN&quot; and tiiny_on():
+        return &quot;TIINY&quot;
+    if IS_MAC:
+        return None          # TRELLIS.2 / Pixal3D / Hi3D / Klein need CUDA
+    return &quot;LOCAL&quot;</code></pre>
+<p><code>engine_ready()</code>, the Generate button's <code>poll()</code>, and the panel in <code>card.py</code> all use it. On a Mac, CUDA-only engines show "needs an NVIDIA GPU (Windows)" with a hint to choose Hunyuan. A Tiiny engine without settings shows <strong>Set Up Tiiny</strong>. Features that only exist locally, such as the Hi3D refinement chain, multi-view input, and auto-enhance, are switched off for Tiiny jobs.</p>
+<h3 id="4-make-the-network-backend-look-like-the-local-engine">4. Make the network backend look like the local engine</h3>
+<p>Locally, the add-on starts a Python subprocess and reads lines like <code>PROGRESS 0.4 Building shape</code> and <code>DONE &lt;path&gt;</code> from its output. The new <code>tiiny_backend.py</code> provides a <code>TiinyProcess</code> class with the same <code>poll()</code>, <code>kill()</code>, <code>stdin</code>, and <code>stdout</code> surface as <code>subprocess.Popen</code>. It speaks the same line protocol, but runs the device's stage chain on a worker thread. Because of this, the existing reader, progress bar, cancel button, and GLB import code needed no changes; the add-on only chooses which "process" to start.</p>
+<p>Some details that mattered:</p>
+<ul><li><strong>Network calls never run on Blender's main thread.</strong> A frozen settings snapshot is taken on the main thread when the job starts.</li><li><strong>Status polls are retried on HTTP 502, 503, and 504</strong> until the job timeout. Submissions are never retried after an ambiguous failure, because the device may already be running the task.</li><li><strong>The API key is never sent to a different host.</strong> The extension refuses redirects to another host and warns about public addresses and plain HTTP.</li><li><strong>Cancel stops the worker</strong> and asks the device to cancel the running task.</li></ul>
+<h3 id="5-add-the-tiiny-settings">5. Add the Tiiny settings</h3>
+<p>New add-on preferences hold the base URL, API key source, authentication header, background-removal toggle, job timeout, and an optional CA file for HTTPS. <strong>Use Tiiny AI</strong> is on by default on macOS. The key can live in Blender's preferences (plain text on disk), the macOS login Keychain via <code>security add-generic-password</code>, or the <code>IMG3D_TIINY_API_KEY</code> environment variable. <strong>Test Connection</strong> checks health, the key, and the running model, and pairs with the device it found, so a different device answering at the same address is refused.</p>
+<h3 id="6-supporting-trellis2">6. Supporting TRELLIS.2</h3>
+<p>The Tiiny SDK documentation describes Hunyuan's chain, where each stage's output file is uploaded again as the next stage's input. TRELLIS.2 on server 2.0.0 works differently. I found the details from <code>GET /v1/3d/capabilities</code> and the server's validation errors:</p>
+<table><thead><tr><th>Stage</th><th>TRELLIS.2 input</th><th>Output</th></tr></thead><tbody><tr><td><code>shape</code></td><td><code>image</code> upload</td><td><code>trellis2_shape.zip</code> and a preview GLB</td></tr><tr><td><code>simplify</code></td><td><code>shape_artifact</code></td><td><code>trellis2_geometry.zip</code> and a preview GLB</td></tr><tr><td><code>texture</code></td><td><code>shape_artifact</code></td><td><code>trellis2_texture.zip</code></td></tr><tr><td><code>export</code></td><td><code>shape_artifact</code>, <code>material_artifact</code>, optional <code>geometry_artifact</code></td><td><code>trellis2.glb</code></td></tr></tbody></table>
+<p>The capabilities report <code>"input_refs": true</code>. Instead of uploading the 98 MB shape archive again, a stage can point at an artifact already on the device with a JSON form field:</p>
+<pre><code>curl -X POST &quot;$BASE_URL/3d/tasks&quot; \
+  -H &quot;Authorization: Bearer $TIINY_API_KEY&quot; \
+  -F stage=texture \
+  -F &#x27;params={&quot;inference_quality&quot;:&quot;balance&quot;}&#x27; \
+  -F &#x27;input_refs={&quot;shape_artifact&quot;:{&quot;task_id&quot;:&quot;&lt;shape task_id&gt;&quot;,&quot;artifact_id&quot;:&quot;&lt;shape artifact_id&gt;&quot;}}&#x27;</code></pre>
+<p>The extension reads the capabilities at the start of each job. If the texture stage takes a <code>shape_artifact</code>, it runs the TRELLIS chain with references; otherwise it runs the Hunyuan chain unchanged, so it switches back once Hunyuan is fixed. Two smaller changes went with it. Stage settings are filtered against each stage's <code>stage_specs.controls</code> as well as its <code>params</code>. <strong>Test Connection</strong> accepts a running TRELLIS model instead of insisting on Hunyuan.</p>
+<h3 id="7-build-and-install">7. Build and install</h3>
+<p>Build platform-specific packages from the extension folder with Blender's command-line tool:</p>
+<pre><code>cd image_to_3d-1.1.5
+/Applications/Blender.app/Contents/MacOS/Blender --command extension build \
+  --split-platforms --output-dir ../dist_build</code></pre>
+<p><code>--split-platforms</code> writes one ZIP per declared platform, such as <code>image_to_3d-1.1.5-macos_arm64.zip</code>. Install it with <strong>Edit → Preferences → Get Extensions → Install from Disk</strong>, then restart Blender. When you edit an installed copy directly, also copy the changes back into your source folder. Otherwise the next build silently drops them.</p>
 <h2 id="source-notes">Source notes</h2>
-<p>This guide is based on the local Tiiny-enabled Image to 3D 1.1.5 extension’s manifest, preferences, and backend implementation; the Tiiny SDK Image-to-3D documentation preserved in the local wiki; and live device checks on November 7, 2026. The verified fix was model loading and HTTP 503 changing to HTTP 200. The extension adaptation is separate from the original add-on’s release.</p>
+<p>This guide is based on the local Tiiny-enabled Image to 3D 1.1.5 extension’s manifest, preferences, and backend implementation, compared against the original 1.1.5 package; the Tiiny SDK Image-to-3D documentation preserved in the local wiki; and live device checks on November 7, 2026. The verified fixes were model loading (HTTP 503 changing to HTTP 200) and, for flat meshes, switching to TRELLIS.2-4B with the extension changes above. The vertex counts and timings come from runs through the updated extension, and the result was confirmed in the Blender interface. The extension adaptation is separate from the original add-on’s release.</p>
 </div>
 </article>
 <footer class="footer">
